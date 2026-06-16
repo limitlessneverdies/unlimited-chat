@@ -1,0 +1,13 @@
+name = "unlimited-chat-proxy"
+main = "index.ts"
+compatibility_date = "2024-01-01"
+
+# --- KV namespace for per-IP rate limiting ---
+# Create first: wrangler kv namespace create RATELIMIT
+# Then paste the ID below.
+[[kv_namespaces]]
+binding = "RATELIMIT"
+id = "1eec71237d01430eb108768373225df9"
+
+# --- Secrets (set via `wrangler secret put`) ---
+# API_KEY — your unlimited.surf upstream key
