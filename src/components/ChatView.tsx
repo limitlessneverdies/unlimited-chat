@@ -6,6 +6,7 @@ import { streamChat, streamSearch, streamMerge, generateTitle, RateLimitError } 
 import MessageList from './MessageList';
 import Composer from './Composer';
 import RewardAd from './RewardAd';
+import AdSlot from './AdSlot';
 import { ChevronDown, Globe, Zap, Sparkles, GitMerge, Download, Infinity as InfinityIcon } from 'lucide-react';
 import { nanoid } from 'nanoid';
 
@@ -567,6 +568,11 @@ export default function ChatView() {
 
       {/* Body */}
       <div style={{ flex: 1, overflowY: 'auto', position: 'relative' }}>
+        {/* Banner ad at top of chat */}
+        <div style={{ padding: '12px 24px', display: 'flex', justifyContent: 'center' }}>
+          <AdSlot format="banner" />
+        </div>
+
         {rateLimit ? (
           <RewardAd
             message={rateLimit.message}

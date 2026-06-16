@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useRef, useEffect } from 'react';
 
 type AdFormat = 'banner' | 'native' | 'smartlink';
 
@@ -9,7 +9,7 @@ interface AdSlotProps {
 }
 
 /**
- * Renders Adsterra ad units using their actual embed codes.
+ * Adsterra ad slots. Uses direct script injection for reliable rendering.
  */
 export default function AdSlot({ format, className, style }: AdSlotProps) {
   const ref = useRef<HTMLDivElement>(null);
@@ -17,22 +17,23 @@ export default function AdSlot({ format, className, style }: AdSlotProps) {
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
+    el.innerHTML = '';
 
     if (format === 'banner') {
-      // Banner 728x90 (29662820)
-      el.innerHTML = '';
-      const s1 = document.createElement('script');
-      s1.textContent = `atOptions = { 'key': '04948a5115e4bef52fb55e392603648c', 'format': 'iframe', 'height': 90, 'width': 728, 'params': {} };`;
-      el.appendChild(s1);
-      const s2 = document.createElement('script');
-      s2.src = 'https://www.highperformanceformat.com/04948a5115e4bef52fb55e392603648c/invoke.js';
-      s2.async = true;
-      el.appendChild(s2);
+      // Banner 728x90 — inject atOptions + invoke script
+      const opts = document.createElement('script');
+      opts.textContent = `atOptions = { 'key': '04948a5115e4bef52fb55e392603648c', 'format': 'iframe', 'height': 90, 'width': 728, 'params': {} };`;
+      el.appendChild(opts);
+      const inv = document.createElement('script');
+      inv.src = 'https://www.highperformanceformat.com/04948a5115e4bef52fb55e392603648c/invoke.js';
+      el.appendChild(inv);
     }
 
     if (format === 'native') {
-      // Native Banner (29662819)
-      el.innerHTML = '<div id="container-1a75697c1f9818fcbcb3e565a6e7057f"></div>';
+      // Native Banner — container div + invoke script
+      const container = document.createElement('div');
+      container.id = 'container-1a75697c1f9818fcbcb3e565a6e7057f';
+      el.appendChild(container);
       const s = document.createElement('script');
       s.src = 'https://pl29763318.effectivecpmnetwork.com/1a75697c1f9818fcbcb3e565a6e7057f/invoke.js';
       s.async = true;
@@ -41,14 +42,12 @@ export default function AdSlot({ format, className, style }: AdSlotProps) {
     }
 
     if (format === 'smartlink') {
-      // Smartlink (29662817) — rendered as a clickable link
-      el.innerHTML = '';
       const a = document.createElement('a');
       a.href = 'https://www.effectivecpmnetwork.com/ce7k8fvz?key=ef30a1d35aa3087234b05eba3fba8418';
       a.target = '_blank';
       a.rel = 'noopener noreferrer';
       a.textContent = 'Discover more';
-      a.style.cssText = 'display:inline-block;padding:10px 20px;background:var(--accent);color:var(--bg);font-weight:700;font-size:13px;border-radius:var(--radius);text-decoration:none;';
+      a.style.cssText = 'display:inline-block;padding:10px 20px;background:#ccff00;color:#000;font-weight:700;font-size:13px;border-radius:6px;text-decoration:none;';
       el.appendChild(a);
     }
   }, [format]);
@@ -83,15 +82,11 @@ export default function AdSlot({ format, className, style }: AdSlotProps) {
     );
   }
 
-  // smartlink
   return (
     <div
       ref={ref}
       className={className}
-      style={{
-        textAlign: 'center',
-        ...style,
-      }}
+      style={{ textAlign: 'center', ...style }}
     />
   );
 }
