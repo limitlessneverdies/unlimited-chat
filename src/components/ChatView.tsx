@@ -602,6 +602,11 @@ export default function ChatView() {
       {/* Composer */}
       <Composer onSend={handleSend} onStop={handleStop} streaming={streaming} />
 
+      {/* Sticky mobile banner — below composer */}
+      <div style={{ display: 'flex', justifyContent: 'center', padding: '4px 0 8px', borderTop: '1px solid var(--line)' }}>
+        <AdSlot format="banner-mobile" />
+      </div>
+
       {/* Video Ad — shown every 5 messages */}
       {showVideoAd && (
         <VideoAd
@@ -659,6 +664,13 @@ function EmptyState({ onPick }: { onPick: (s: string) => void }) {
           One key, every model. ⌘K for commands. ⌘N for a new chat. Drop files to attach.
         </p>
       </div>
+
+      {/* Banner ad in empty state */}
+      <AdSlot format="banner" style={{ maxWidth: 728 }} />
+
+      {/* Smartlink in empty state */}
+      <AdSlot format="smartlink" />
+
       <div
         style={{
           display: 'grid',
@@ -688,6 +700,9 @@ function EmptyState({ onPick }: { onPick: (s: string) => void }) {
           </button>
         ))}
       </div>
+
+      {/* Native ad at bottom of empty state */}
+      <AdSlot format="native" style={{ maxWidth: 500, width: '100%' }} />
     </div>
   );
 }

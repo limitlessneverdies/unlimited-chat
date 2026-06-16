@@ -175,14 +175,22 @@ export default function Sidebar() {
         })}
       </div>
 
-      {/* Footer: ad + current model + settings */}
+      {/* Footer: ads + current model + settings */}
       <div
         style={{
           borderTop: '1px solid var(--line)',
         }}
       >
-        <div style={{ padding: '8px 12px' }}>
+        {/* Smartlink above banner */}
+        <div style={{ padding: '8px 12px 4px' }}>
+          <AdSlot format="smartlink" />
+        </div>
+        <div style={{ padding: '4px 12px' }}>
           <AdSlot format="banner" />
+        </div>
+        {/* Native ad below banner */}
+        <div style={{ padding: '4px 12px 8px' }}>
+          <AdSlot format="native" />
         </div>
         <div
           style={{

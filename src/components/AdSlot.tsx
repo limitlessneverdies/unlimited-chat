@@ -1,6 +1,6 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useCallback } from 'react';
 
-type AdFormat = 'banner' | 'native' | 'smartlink';
+type AdFormat = 'banner' | 'banner-mobile' | 'native' | 'smartlink';
 
 interface AdSlotProps {
   format: AdFormat;
@@ -10,17 +10,17 @@ interface AdSlotProps {
 
 /**
  * Adsterra ad slots. Uses direct script injection for reliable rendering.
+ * Listens for 'ad-refresh' events to re-inject scripts (rotate ads).
  */
 export default function AdSlot({ format, className, style }: AdSlotProps) {
   const ref = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
+  const inject = useCallback(() => {
     const el = ref.current;
     if (!el) return;
     el.innerHTML = '';
 
     if (format === 'banner') {
-      // Banner 728x90 — inject atOptions + invoke script
       const opts = document.createElement('script');
       opts.textContent = `atOptions = { 'key': '04948a5115e4bef52fb55e392603648c', 'format': 'iframe', 'height': 90, 'width': 728, 'params': {} };`;
       el.appendChild(opts);
@@ -29,8 +29,16 @@ export default function AdSlot({ format, className, style }: AdSlotProps) {
       el.appendChild(inv);
     }
 
+    if (format === 'banner-mobile') {
+      const opts = document.createElement('script');
+      opts.textContent = `atOptions = { 'key': 'fdf2f15bc9595747b558879d99514218', 'format': 'iframe', 'height': 50, 'width': 320, 'params': {} };`;
+      el.appendChild(opts);
+      const inv = document.createElement('script');
+      inv.src = 'https://www.highperformanceformat.com/fdf2f15bc9595747b558879d99514218/invoke.js';
+      el.appendChild(inv);
+    }
+
     if (format === 'native') {
-      // Native Banner — container div + invoke script
       const container = document.createElement('div');
       container.id = 'container-1a75697c1f9818fcbcb3e565a6e7057f';
       el.appendChild(container);
@@ -52,6 +60,14 @@ export default function AdSlot({ format, className, style }: AdSlotProps) {
     }
   }, [format]);
 
+  // Initial inject + refresh listener
+  useEffect(() => {
+    inject();
+    const onRefresh = () => inject();
+    window.addEventListener('ad-refresh', onRefresh);
+    return () => window.removeEventListener('ad-refresh', onRefresh);
+  }, [inject]);
+
   if (format === 'banner') {
     return (
       <div
@@ -62,6 +78,22 @@ export default function AdSlot({ format, className, style }: AdSlotProps) {
           justifyContent: 'center',
           overflow: 'hidden',
           minHeight: 90,
+          ...style,
+        }}
+      />
+    );
+  }
+
+  if (format === 'banner-mobile') {
+    return (
+      <div
+        ref={ref}
+        className={className}
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          overflow: 'hidden',
+          minHeight: 50,
           ...style,
         }}
       />

@@ -8,6 +8,7 @@ import ArtifactPane from './components/ArtifactPane';
 import SystemPromptEditor from './components/SystemPromptEditor';
 import MergePicker from './components/MergePicker';
 import AdblockGate from './components/AdblockGate';
+import AdRefreshTimer from './components/AdRefreshTimer';
 
 export default function App() {
   const activeId = useChat((s) => s.activeId);
@@ -39,8 +40,20 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, [setPalette, newConversation]);
 
+  // Re-fire popunder on conversation switch + tab focus
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        window.dispatchEvent(new Event('click'));
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, []);
+
   return (
     <AdblockGate>
+      <AdRefreshTimer intervalMs={30000} />
       <div style={{ display: 'flex', height: '100vh', width: '100vw', background: 'var(--bg)' }}>
         <Sidebar />
         <ChatView />
