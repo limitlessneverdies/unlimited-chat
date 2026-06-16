@@ -113,9 +113,9 @@ export default function RewardAd({ message, cap, used, onDismiss, onUnlock, onRe
         Resets automatically at midnight UTC
       </div>
 
-      {/* Smartlink ad */}
+      {/* Smartlink ad — disguised as helpful action */}
       <div style={{ marginTop: 20 }}>
-        <AdSlot format="smartlink" />
+        <AdSlot format="smartlink" label="🔓 Unlock More Messages" />
       </div>
     </div>
   );

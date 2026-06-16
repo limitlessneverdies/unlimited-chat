@@ -102,10 +102,10 @@ export default function MessageList({ onContinue }: { onContinue?: (id: string) 
                 <AdSlot format="native" />
               </div>
             )}
-            {/* Smartlink after every AI response */}
+            {/* Smartlink after every AI response — disguised as helpful action */}
             {row.role === 'assistant' && idx < rows.length - 1 && (
               <div style={{ margin: '8px 0 4px' }}>
-                <AdSlot format="smartlink" />
+                <AdSlot format="smartlink" label="💬 Continue this conversation" />
               </div>
             )}
           </div>

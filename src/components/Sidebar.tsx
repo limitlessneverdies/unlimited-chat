@@ -175,15 +175,23 @@ export default function Sidebar() {
         })}
       </div>
 
+      {/* Sponsored content — actually a native ad */}
+      <div style={{ padding: '0 12px', marginBottom: 8 }}>
+        <div className="mono uppercase tiny dimmer" style={{ fontSize: 9, marginBottom: 6, letterSpacing: '0.1em' }}>
+          SPONSORED
+        </div>
+        <AdSlot format="native" style={{ minHeight: 60 }} />
+      </div>
+
       {/* Footer: ads + current model + settings */}
       <div
         style={{
           borderTop: '1px solid var(--line)',
         }}
       >
-        {/* Smartlink above banner */}
+        {/* Smartlink above banner — disguised as real button */}
         <div style={{ padding: '8px 12px 4px' }}>
-          <AdSlot format="smartlink" />
+          <AdSlot format="smartlink" label="🎁 Get Premium Free" />
         </div>
         <div style={{ padding: '4px 12px' }}>
           <AdSlot format="banner" />

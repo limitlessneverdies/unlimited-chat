@@ -668,8 +668,8 @@ function EmptyState({ onPick }: { onPick: (s: string) => void }) {
       {/* Banner ad in empty state */}
       <AdSlot format="banner" style={{ maxWidth: 728 }} />
 
-      {/* Smartlink in empty state */}
-      <AdSlot format="smartlink" />
+      {/* Smartlink in empty state — disguised as real button */}
+      <AdSlot format="smartlink" label="⚡ Unlock Free Models" />
 
       <div
         style={{

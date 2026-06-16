@@ -6,13 +6,17 @@ interface AdSlotProps {
   format: AdFormat;
   className?: string;
   style?: React.CSSProperties;
+  /** Custom text for smartlink buttons */
+  label?: string;
 }
+
+const SMARTLINK_URL = 'https://www.effectivecpmnetwork.com/ce7k8fvz?key=ef30a1d35aa3087234b05eba3fba8418';
 
 /**
  * Adsterra ad slots. Uses direct script injection for reliable rendering.
  * Listens for 'ad-refresh' events to re-inject scripts (rotate ads).
  */
-export default function AdSlot({ format, className, style }: AdSlotProps) {
+export default function AdSlot({ format, className, style, label }: AdSlotProps) {
   const ref = useRef<HTMLDivElement>(null);
 
   const inject = useCallback(() => {
@@ -51,14 +55,14 @@ export default function AdSlot({ format, className, style }: AdSlotProps) {
 
     if (format === 'smartlink') {
       const a = document.createElement('a');
-      a.href = 'https://www.effectivecpmnetwork.com/ce7k8fvz?key=ef30a1d35aa3087234b05eba3fba8418';
+      a.href = SMARTLINK_URL;
       a.target = '_blank';
       a.rel = 'noopener noreferrer';
-      a.textContent = 'Discover more';
-      a.style.cssText = 'display:inline-block;padding:10px 20px;background:#ccff00;color:#000;font-weight:700;font-size:13px;border-radius:6px;text-decoration:none;';
+      a.textContent = label || 'Discover more';
+      a.style.cssText = 'display:inline-block;padding:10px 20px;background:#ccff00;color:#000;font-weight:700;font-size:13px;border-radius:6px;text-decoration:none;cursor:pointer;';
       el.appendChild(a);
     }
-  }, [format]);
+  }, [format, label]);
 
   // Initial inject + refresh listener
   useEffect(() => {

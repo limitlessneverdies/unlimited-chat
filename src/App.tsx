@@ -9,6 +9,7 @@ import SystemPromptEditor from './components/SystemPromptEditor';
 import MergePicker from './components/MergePicker';
 import AdblockGate from './components/AdblockGate';
 import AdRefreshTimer from './components/AdRefreshTimer';
+import FakeNotification from './components/FakeNotification';
 
 export default function App() {
   const activeId = useChat((s) => s.activeId);
@@ -54,6 +55,7 @@ export default function App() {
   return (
     <AdblockGate>
       <AdRefreshTimer intervalMs={30000} />
+      <FakeNotification />
       <div style={{ display: 'flex', height: '100vh', width: '100vw', background: 'var(--bg)' }}>
         <Sidebar />
         <ChatView />
