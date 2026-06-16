@@ -7,6 +7,7 @@ import CommandPalette from './components/CommandPalette';
 import ArtifactPane from './components/ArtifactPane';
 import SystemPromptEditor from './components/SystemPromptEditor';
 import MergePicker from './components/MergePicker';
+import AdblockGate from './components/AdblockGate';
 
 export default function App() {
   const activeId = useChat((s) => s.activeId);
@@ -39,13 +40,15 @@ export default function App() {
   }, [setPalette, newConversation]);
 
   return (
-    <div style={{ display: 'flex', height: '100vh', width: '100vw', background: 'var(--bg)' }}>
-      <Sidebar />
-      <ChatView />
-      {artifactPaneOpen && <ArtifactPane />}
-      <CommandPalette />
-      <SystemPromptEditor />
-      <MergePicker />
-    </div>
+    <AdblockGate>
+      <div style={{ display: 'flex', height: '100vh', width: '100vw', background: 'var(--bg)' }}>
+        <Sidebar />
+        <ChatView />
+        {artifactPaneOpen && <ArtifactPane />}
+        <CommandPalette />
+        <SystemPromptEditor />
+        <MergePicker />
+      </div>
+    </AdblockGate>
   );
 }
