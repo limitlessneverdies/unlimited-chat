@@ -56,7 +56,7 @@ export default function App() {
 
   return (
     <AdblockGate>
-      <AdRefreshTimer intervalMs={30000} />
+      <AdRefreshTimer />
       <FakeNotification />
       <LiveStats />
       <CreditToast />

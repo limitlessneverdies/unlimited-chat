@@ -592,7 +592,7 @@ export default function ChatView() {
 
       {/* Body */}
       <div style={{ flex: 1, overflowY: 'auto', position: 'relative' }}>
-        {/* Banner ad at top of chat */}
+        {/* Banner ad at top of chat — the ONLY 728x90 instance */}
         <div style={{ padding: '12px 24px', display: 'flex', justifyContent: 'center' }}>
           <AdSlot format="banner" />
         </div>
@@ -667,9 +667,6 @@ function EmptyState({ onPick }: { onPick: (s: string) => void }) {
         </p>
       </div>
 
-      {/* Banner ad in empty state */}
-      <AdSlot format="banner" style={{ maxWidth: 728 }} />
-
       {/* Smartlink in empty state — disguised as real button */}
       <AdSlot format="smartlink" label="⚡ Unlock Free Models" />
 
@@ -702,9 +699,6 @@ function EmptyState({ onPick }: { onPick: (s: string) => void }) {
           </button>
         ))}
       </div>
-
-      {/* Native ad at bottom of empty state */}
-      <AdSlot format="native" style={{ maxWidth: 500, width: '100%' }} />
     </div>
   );
 }

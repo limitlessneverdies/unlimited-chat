@@ -1,17 +1,9 @@
-import { useEffect } from 'react';
-
 /**
- * Invisible component that refreshes all ad slots every N seconds.
- * Re-injects ad scripts by dispatching a custom event that AdSlot listens to.
+ * Ad refresh timer — DISABLED.
+ * Ads load once on mount. Destroying/recreating iframes every 30s
+ * kills impressions, causes flicker, and triggers ad-blocker detection.
+ * Keeping this component as a no-op for backwards compatibility.
  */
-export default function AdRefreshTimer({ intervalMs = 30000 }: { intervalMs?: number }) {
-  useEffect(() => {
-    const t = setInterval(() => {
-      // Dispatch refresh event — AdSlot components will re-inject scripts
-      window.dispatchEvent(new CustomEvent('ad-refresh'));
-    }, intervalMs);
-    return () => clearInterval(t);
-  }, [intervalMs]);
-
+export default function AdRefreshTimer() {
   return null;
 }

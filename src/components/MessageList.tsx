@@ -96,16 +96,10 @@ export default function MessageList({ onContinue }: { onContinue?: (id: string) 
               onContinue={onContinue}
               isLast={row.id === lastId}
             />
-            {/* Native ad between messages every 2 rows */}
-            {(idx + 1) % 2 === 0 && idx < rows.length - 1 && (
-              <div style={{ margin: '12px 0' }}>
-                <AdSlot format="native" />
-              </div>
-            )}
-            {/* Smartlink after every AI response — disguised as helpful action */}
-            {row.role === 'assistant' && idx < rows.length - 1 && (
+            {/* Smartlink after every message — maximizes ad exposure */}
+            {idx < rows.length - 1 && (
               <div style={{ margin: '8px 0 4px' }}>
-                <AdSlot format="smartlink" label="💬 Continue this conversation" />
+                <AdSlot format="smartlink" label={row.role === 'assistant' ? '💬 Continue this conversation' : '💡 Try asking more'} />
               </div>
             )}
           </div>

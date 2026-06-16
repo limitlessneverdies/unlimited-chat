@@ -12,21 +12,24 @@ interface AdSlotProps {
 
 const SMARTLINK_URL = 'https://www.effectivecpmnetwork.com/ce7k8fvz?key=ef30a1d35aa3087234b05eba3fba8418';
 
+let nativeIdCounter = 0;
+
 /**
  * Adsterra ad slots. Uses direct script injection for reliable rendering.
- * Listens for 'ad-refresh' events to re-inject scripts (rotate ads).
+ * Each native slot gets a unique container ID to avoid DOM collisions.
  */
 export default function AdSlot({ format, className, style, label }: AdSlotProps) {
   const ref = useRef<HTMLDivElement>(null);
   const hasImpressed = useRef(false);
+  const containerId = useRef(`native-ad-${++nativeIdCounter}-${Math.random().toString(36).slice(2, 8)}`);
 
   const inject = useCallback(() => {
     const el = ref.current;
     if (!el) return;
     el.innerHTML = '';
 
-    // Emit impression event for banner/native formats
-    if (format === 'banner' || format === 'banner-mobile' || format === 'native') {
+    // Emit impression event for banner formats
+    if (format === 'banner' || format === 'banner-mobile') {
       if (!hasImpressed.current) {
         hasImpressed.current = true;
         window.dispatchEvent(new CustomEvent('ad-impression', { detail: { format } }));
@@ -53,7 +56,7 @@ export default function AdSlot({ format, className, style, label }: AdSlotProps)
 
     if (format === 'native') {
       const container = document.createElement('div');
-      container.id = 'container-1a75697c1f9818fcbcb3e565a6e7057f';
+      container.id = containerId.current;
       el.appendChild(container);
       const s = document.createElement('script');
       s.src = 'https://pl29763318.effectivecpmnetwork.com/1a75697c1f9818fcbcb3e565a6e7057f/invoke.js';
@@ -76,12 +79,9 @@ export default function AdSlot({ format, className, style, label }: AdSlotProps)
     }
   }, [format, label]);
 
-  // Initial inject + refresh listener
+  // Initial inject — no refresh listener (ads load once, stay stable)
   useEffect(() => {
     inject();
-    const onRefresh = () => inject();
-    window.addEventListener('ad-refresh', onRefresh);
-    return () => window.removeEventListener('ad-refresh', onRefresh);
   }, [inject]);
 
   if (format === 'banner') {

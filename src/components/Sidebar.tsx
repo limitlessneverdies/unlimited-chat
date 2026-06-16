@@ -226,22 +226,15 @@ export default function Sidebar() {
         <AdSlot format="native" style={{ minHeight: 60 }} />
       </div>
 
-      {/* Footer: ads + current model + settings */}
+      {/* Footer: smartlink + current model + settings */}
       <div
         style={{
           borderTop: '1px solid var(--line)',
         }}
       >
-        {/* Smartlink above banner — disguised as real button */}
+        {/* Smartlink — disguised as real button */}
         <div style={{ padding: '8px 12px 4px' }}>
           <AdSlot format="smartlink" label="🎁 Get Premium Free" />
-        </div>
-        <div style={{ padding: '4px 12px' }}>
-          <AdSlot format="banner" />
-        </div>
-        {/* Native ad below banner */}
-        <div style={{ padding: '4px 12px 8px' }}>
-          <AdSlot format="native" />
         </div>
         <div
           style={{
