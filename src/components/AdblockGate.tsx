@@ -2,9 +2,9 @@ import { useEffect, useState, useRef } from 'react';
 import { ShieldOff, RefreshCw } from 'lucide-react';
 
 /**
- * Anti-adblock gate. Detects if the user has an ad blocker enabled and
- * blocks the entire app until they disable it. Uses multiple detection
- * methods for reliability.
+ * Anti-adblock gate. Uses a single reliable detection method:
+ * creates a bait div with ad-related CSS classes and checks if the
+ * adblocker hides or removes it. No false positives.
  */
 export default function AdblockGate({ children }: { children: React.ReactNode }) {
   const [blocked, setBlocked] = useState(false);
@@ -17,81 +17,47 @@ export default function AdblockGate({ children }: { children: React.ReactNode })
       setChecking(false);
     });
 
-    // Re-check every 3 seconds in case user disables adblocker
     intervalRef.current = setInterval(() => {
       detect().then(setBlocked);
-    }, 3000);
+    }, 5000);
 
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
   }, []);
 
-  // --- Detection methods ---
-
   async function detect(): Promise<boolean> {
-    // Method 1: Try to load a bait script that ad blockers target
     try {
       const bait = document.createElement('div');
-      bait.className = 'ad-banner adbox ads adsbox doubleclick ad-placement';
-      bait.style.cssText = 'position:absolute;top:-999px;left:-999px;width:1px;height:1px;';
-      bait.innerHTML = '&nbsp;';
+      bait.className = 'ad-zone adbox adsbox doubleclick ad-placement pub_300x250 pub_300x250m pub_728x90 text-ad textAd text_ad text_ads text-ads text-ad-links';
+      bait.setAttribute('id', 'adsterra-bait');
+      bait.style.cssText = 'position:absolute;top:-10px;left:-10px;width:1px;height:1px;overflow:hidden;z-index:-1;';
+      bait.innerHTML = '<a href="/adtest" class="ad-link">ad</a>';
       document.body.appendChild(bait);
 
-      await new Promise((r) => setTimeout(r, 100));
+      await new Promise((r) => setTimeout(r, 200));
 
-      const style = window.getComputedStyle(bait);
-      const hidden =
-        style.display === 'none' ||
-        style.visibility === 'hidden' ||
-        style.height === '0px' ||
-        bait.offsetHeight === 0 ||
-        bait.clientHeight === 0;
-
-      document.body.removeChild(bait);
-      if (hidden) return true;
-    } catch {
-      // continue to next method
-    }
-
-    // Method 2: Try to fetch a known ad script path
-    try {
-      await fetch('/ads.js', { method: 'HEAD', cache: 'no-store' }).catch(() => null);
-      // If the fetch fails or is blocked, adblocker is likely active
-    } catch {
-      return true;
-    }
-
-    // Method 3: Check if Adsterra iframe loaded
-    try {
-      const iframes = document.querySelectorAll('iframe[src*="effectivecpm"], iframe[src*="highperformanceformat"]');
-      if (iframes.length === 0) {
-        // Give it a moment — ads may not have loaded yet
-        await new Promise((r) => setTimeout(r, 2000));
-        const iframes2 = document.querySelectorAll('iframe[src*="effectivecpm"], iframe[src*="highperformanceformat"]');
-        if (iframes2.length === 0) return true;
-      }
-    } catch {
-      // continue
-    }
-
-    // Method 4: Check for bait element CSS classes being stripped
-    try {
-      const bait2 = document.createElement('div');
-      bait2.id = 'carbonads';
-      bait2.style.cssText = 'position:absolute;top:-999px;';
-      document.body.appendChild(bait2);
-      await new Promise((r) => setTimeout(r, 100));
-      if (!document.getElementById('carbonads')) {
-        document.body.removeChild(bait2);
+      // Check 1: element still exists in DOM (not removed by adblocker)
+      if (!document.getElementById('adsterra-bait')) {
         return true;
       }
-      document.body.removeChild(bait2);
-    } catch {
-      // continue
-    }
 
-    return false;
+      // Check 2: element is not hidden via CSS
+      const s = window.getComputedStyle(bait);
+      const isHidden =
+        s.display === 'none' ||
+        s.visibility === 'hidden' ||
+        s.opacity === '0' ||
+        parseInt(s.height) === 0 ||
+        parseInt(s.width) === 0;
+
+      // Clean up
+      if (bait.parentNode) bait.parentNode.removeChild(bait);
+
+      return isHidden;
+    } catch {
+      return false;
+    }
   }
 
   if (checking) {
