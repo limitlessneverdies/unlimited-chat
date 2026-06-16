@@ -1,11 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { X, Volume2, VolumeX } from 'lucide-react';
+import videojs from 'video.js';
+import 'video.js/dist/video-js.css';
+import type Player from 'video.js/dist/types/player';
 
 interface VideoAdProps {
   onComplete: () => void;
   onSkip?: () => void;
-  /** Direct video URL or VAST tag URL */
+  /** Direct video .mp4 URL */
   src?: string;
+  /** VAST tag URL (from Adsterra) — takes priority over src */
+  vastUrl?: string;
   /** Seconds before skip button appears */
   skipAfter?: number;
   /** Ad label text */
@@ -13,21 +18,24 @@ interface VideoAdProps {
 }
 
 /**
- * Full-screen video ad overlay. Plays a video ad and calls onComplete when
- * finished (or on skip). Shows a countdown before the skip button appears.
+ * Full-screen video ad overlay. Supports direct .mp4 files and VAST tags.
+ * When vastUrl is provided, uses the @arte/videojs-vast plugin.
  */
 export default function VideoAd({
   onComplete,
   onSkip,
   src,
+  vastUrl,
   skipAfter = 5,
   label = 'Advertisement',
 }: VideoAdProps) {
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const playerRef = useRef<Player | null>(null);
   const [muted, setMuted] = useState(false);
   const [countdown, setCountdown] = useState(skipAfter);
   const [canSkip, setCanSkip] = useState(false);
   const [finished, setFinished] = useState(false);
+  const [error, setError] = useState(false);
 
   // Countdown timer
   useEffect(() => {
@@ -39,20 +47,71 @@ export default function VideoAd({
     return () => clearTimeout(t);
   }, [countdown]);
 
-  // Auto-play
+  // Initialize Video.js player
   useEffect(() => {
-    const v = videoRef.current;
-    if (!v) return;
-    v.play().catch(() => {
-      // Autoplay blocked — start muted
-      v.muted = true;
-      setMuted(true);
+    if (!containerRef.current || playerRef.current) return;
+
+    const videoEl = document.createElement('video');
+    videoEl.className = 'video-js vjs-big-play-centered';
+    containerRef.current.appendChild(videoEl);
+
+    const player = videojs(videoEl, {
+      controls: false,
+      autoplay: true,
+      preload: 'auto',
+      fill: true,
+      playsinline: true,
+      muted: false,
     });
+
+    playerRef.current = player;
+
+    if (vastUrl) {
+      // Load VAST tag
+      import('@arte/videojs-vast').then(() => {
+        (player as any).vast({ vastUrl });
+      }).catch(() => {
+        // VAST plugin failed — fall back to direct src
+        if (src) player.src({ type: 'video/mp4', src });
+      });
+    } else if (src) {
+      player.src({ type: 'video/mp4', src });
+    } else {
+      // No source — show error state
+      setError(true);
+    }
+
+    player.on('ended', () => {
+      setFinished(true);
+      setTimeout(onComplete, 800);
+    });
+
+    player.on('error', () => {
+      setError(true);
+    });
+
+    // Try autoplay, fallback to muted
+    player.ready(() => {
+      player.play()?.catch?.(() => {
+        player.muted(true);
+        setMuted(true);
+      });
+    });
+
+    return () => {
+      if (playerRef.current && !playerRef.current.isDisposed()) {
+        playerRef.current.dispose();
+        playerRef.current = null;
+      }
+    };
   }, []);
 
-  function handleEnd() {
-    setFinished(true);
-    setTimeout(onComplete, 800);
+  function handleMuteToggle() {
+    const p = playerRef.current;
+    if (!p) return;
+    const newMuted = !muted;
+    p.muted(newMuted);
+    setMuted(newMuted);
   }
 
   function handleSkip() {
@@ -91,59 +150,30 @@ export default function VideoAd({
         {label}
       </div>
 
-      {/* Video */}
-      <video
-        ref={videoRef}
-        src={src}
-        onEnded={handleEnd}
-        muted={muted}
-        playsInline
+      {/* Video container */}
+      <div
+        ref={containerRef}
         style={{
           width: '100%',
           height: '100%',
-          objectFit: 'contain',
-          background: '#000',
         }}
       />
 
-      {/* Controls overlay */}
-      <div
-        style={{
-          position: 'absolute',
-          bottom: 24,
-          left: 0,
-          right: 0,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 16,
-          zIndex: 2,
-        }}
-      >
-        {/* Mute toggle */}
-        <button
-          onClick={() => {
-            setMuted(!muted);
-            if (videoRef.current) videoRef.current.muted = !muted;
-          }}
+      {/* Error state — no video source */}
+      {error && (
+        <div
           style={{
-            width: 40,
-            height: 40,
-            borderRadius: '50%',
-            background: 'rgba(0,0,0,0.6)',
-            border: '1px solid rgba(255,255,255,0.2)',
-            color: '#fff',
+            position: 'absolute',
+            inset: 0,
             display: 'flex',
+            flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            cursor: 'pointer',
+            color: '#fff',
+            gap: 16,
           }}
         >
-          {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
-        </button>
-
-        {/* Skip button */}
-        {canSkip ? (
+          <div style={{ fontSize: 14, opacity: 0.5 }}>No ad available</div>
           <button
             onClick={handleSkip}
             style={{
@@ -155,30 +185,85 @@ export default function VideoAd({
               fontWeight: 700,
               fontSize: 13,
               cursor: 'pointer',
-              backdropFilter: 'blur(8px)',
             }}
           >
-            Skip Ad →
+            Continue →
           </button>
-        ) : (
-          <div
-            className="mono"
+        </div>
+      )}
+
+      {/* Controls overlay */}
+      {!error && (
+        <div
+          style={{
+            position: 'absolute',
+            bottom: 24,
+            left: 0,
+            right: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 16,
+            zIndex: 2,
+          }}
+        >
+          {/* Mute toggle */}
+          <button
+            onClick={handleMuteToggle}
             style={{
-              padding: '10px 20px',
-              background: 'rgba(0,0,0,0.5)',
-              borderRadius: 6,
+              width: 40,
+              height: 40,
+              borderRadius: '50%',
+              background: 'rgba(0,0,0,0.6)',
+              border: '1px solid rgba(255,255,255,0.2)',
               color: '#fff',
-              fontSize: 12,
-              opacity: 0.7,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
             }}
           >
-            Skip in {countdown}s
-          </div>
-        )}
-      </div>
+            {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+          </button>
 
-      {/* Close button (top right) */}
-      {canSkip && (
+          {/* Skip button */}
+          {canSkip ? (
+            <button
+              onClick={handleSkip}
+              style={{
+                padding: '10px 24px',
+                background: 'rgba(255,255,255,0.15)',
+                border: '1px solid rgba(255,255,255,0.3)',
+                borderRadius: 6,
+                color: '#fff',
+                fontWeight: 700,
+                fontSize: 13,
+                cursor: 'pointer',
+                backdropFilter: 'blur(8px)',
+              }}
+            >
+              Skip Ad →
+            </button>
+          ) : (
+            <div
+              className="mono"
+              style={{
+                padding: '10px 20px',
+                background: 'rgba(0,0,0,0.5)',
+                borderRadius: 6,
+                color: '#fff',
+                fontSize: 12,
+                opacity: 0.7,
+              }}
+            >
+              Skip in {countdown}s
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Close button */}
+      {canSkip && !error && (
         <button
           onClick={handleSkip}
           style={{

@@ -8,6 +8,7 @@ import Composer from './Composer';
 import RewardAd from './RewardAd';
 import AdSlot from './AdSlot';
 import VideoAd from './VideoAd';
+import { VIDEO_AD_CONFIG } from '../config/ads';
 import { ChevronDown, Globe, Zap, Sparkles, GitMerge, Download, Infinity as InfinityIcon } from 'lucide-react';
 import { nanoid } from 'nanoid';
 
@@ -58,9 +59,9 @@ export default function ChatView() {
     const userMsg = store.addUserMessage(composed, attachments?.map((a) => ({ name: a.name, size: a.size })));
     if (!userMsg) return;
 
-    // Video ad every 5 messages
+    // Video ad every N messages
     msgCountRef.current++;
-    if (msgCountRef.current % 5 === 0) {
+    if (msgCountRef.current % VIDEO_AD_CONFIG.everyNMessages === 0) {
       setShowVideoAd(true);
       return; // Ad shows, user sends message after ad closes
     }
@@ -606,7 +607,9 @@ export default function ChatView() {
         <VideoAd
           onComplete={() => setShowVideoAd(false)}
           onSkip={() => setShowVideoAd(false)}
-          skipAfter={5}
+          vastUrl={VIDEO_AD_CONFIG.vastUrl || undefined}
+          src={VIDEO_AD_CONFIG.src || undefined}
+          skipAfter={VIDEO_AD_CONFIG.skipAfter}
         />
       )}
     </main>
