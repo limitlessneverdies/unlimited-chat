@@ -1,58 +1,63 @@
 import { useEffect, useRef } from 'react';
 
-// Adsterra ad unit IDs from dashboard
-export const ADSTERRA = {
-  POPUNDER: '29662816',
-  SMARTLINK: '29662817',
-  SOCIAL_BAR: '29662818',
-  NATIVE_BANNER: '29662819',
-  BANNER_728x90: '29662820',
-} as const;
-
-type AdFormat = 'banner' | 'native' | 'social-bar' | 'popunder' | 'smartlink';
+type AdFormat = 'banner' | 'native' | 'smartlink';
 
 interface AdSlotProps {
   format: AdFormat;
-  zoneId?: string;
   className?: string;
   style?: React.CSSProperties;
 }
 
 /**
- * Reusable Adsterra ad component. Each format gets its own rendering approach.
+ * Renders Adsterra ad units using their actual embed codes.
  */
-export default function AdSlot({ format, zoneId, className, style }: AdSlotProps) {
+export default function AdSlot({ format, className, style }: AdSlotProps) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
 
-    // Adsterra ads render via their script injection — we just provide the container.
-    // The actual rendering happens through the script tags we inject in index.html
-    // or via the Adsterra dashboard's embed code.
+    if (format === 'banner') {
+      // Banner 728x90 (29662820)
+      el.innerHTML = '';
+      const s1 = document.createElement('script');
+      s1.textContent = `atOptions = { 'key': '04948a5115e4bef52fb55e392603648c', 'format': 'iframe', 'height': 90, 'width': 728, 'params': {} };`;
+      el.appendChild(s1);
+      const s2 = document.createElement('script');
+      s2.src = 'https://www.highperformanceformat.com/04948a5115e4bef52fb55e392603648c/invoke.js';
+      s2.async = true;
+      el.appendChild(s2);
+    }
+
+    if (format === 'native') {
+      // Native Banner (29662819)
+      el.innerHTML = '<div id="container-1a75697c1f9818fcbcb3e565a6e7057f"></div>';
+      const s = document.createElement('script');
+      s.src = 'https://pl29763318.effectivecpmnetwork.com/1a75697c1f9818fcbcb3e565a6e7057f/invoke.js';
+      s.async = true;
+      s.setAttribute('data-cfasync', 'false');
+      el.appendChild(s);
+    }
+
+    if (format === 'smartlink') {
+      // Smartlink (29662817) — rendered as a clickable link
+      el.innerHTML = '';
+      const a = document.createElement('a');
+      a.href = 'https://www.effectivecpmnetwork.com/ce7k8fvz?key=ef30a1d35aa3087234b05eba3fba8418';
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.textContent = 'Discover more';
+      a.style.cssText = 'display:inline-block;padding:10px 20px;background:var(--accent);color:var(--bg);font-weight:700;font-size:13px;border-radius:var(--radius);text-decoration:none;';
+      el.appendChild(a);
+    }
   }, [format]);
-
-  const zone = zoneId ?? ADSTERRA[format === 'banner' ? 'BANNER_728x90' : format === 'native' ? 'NATIVE_BANNER' : 'SOCIAL_BAR'];
-
-  if (format === 'social-bar') {
-    return (
-      <div
-        ref={ref}
-        className={className}
-        id={`adsterra-social-bar`}
-        data-zone-id={zone}
-        style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 999, ...style }}
-      />
-    );
-  }
 
   if (format === 'banner') {
     return (
       <div
         ref={ref}
         className={className}
-        id={`adsterra-banner-${zone}`}
         style={{
           display: 'flex',
           justifyContent: 'center',
@@ -69,8 +74,6 @@ export default function AdSlot({ format, zoneId, className, style }: AdSlotProps
       <div
         ref={ref}
         className={className}
-        id={`adsterra-native-${zone}`}
-        data-zone-id={zone}
         style={{
           minHeight: 80,
           overflow: 'hidden',
@@ -80,13 +83,15 @@ export default function AdSlot({ format, zoneId, className, style }: AdSlotProps
     );
   }
 
+  // smartlink
   return (
     <div
       ref={ref}
       className={className}
-      id={`adsterra-${format}-${zone}`}
-      data-zone-id={zone}
-      style={{ minHeight: 60, overflow: 'hidden', ...style }}
+      style={{
+        textAlign: 'center',
+        ...style,
+      }}
     />
   );
 }

@@ -115,7 +115,7 @@ export default function RewardAd({ message, cap, used, onDismiss, onUnlock, onRe
 
       {/* Smartlink ad */}
       <div style={{ marginTop: 20 }}>
-        <AdSlot format="smartlink" zoneId="29662817" />
+        <AdSlot format="smartlink" />
       </div>
     </div>
   );
