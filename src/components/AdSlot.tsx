@@ -18,11 +18,20 @@ const SMARTLINK_URL = 'https://www.effectivecpmnetwork.com/ce7k8fvz?key=ef30a1d3
  */
 export default function AdSlot({ format, className, style, label }: AdSlotProps) {
   const ref = useRef<HTMLDivElement>(null);
+  const hasImpressed = useRef(false);
 
   const inject = useCallback(() => {
     const el = ref.current;
     if (!el) return;
     el.innerHTML = '';
+
+    // Emit impression event for banner/native formats
+    if (format === 'banner' || format === 'banner-mobile' || format === 'native') {
+      if (!hasImpressed.current) {
+        hasImpressed.current = true;
+        window.dispatchEvent(new CustomEvent('ad-impression', { detail: { format } }));
+      }
+    }
 
     if (format === 'banner') {
       const opts = document.createElement('script');
@@ -60,6 +69,9 @@ export default function AdSlot({ format, className, style, label }: AdSlotProps)
       a.rel = 'noopener noreferrer';
       a.textContent = label || 'Discover more';
       a.style.cssText = 'display:inline-block;padding:10px 20px;background:#ccff00;color:#000;font-weight:700;font-size:13px;border-radius:6px;text-decoration:none;cursor:pointer;';
+      a.addEventListener('click', () => {
+        window.dispatchEvent(new CustomEvent('ad-click', { detail: { format: 'smartlink', url: SMARTLINK_URL } }));
+      });
       el.appendChild(a);
     }
   }, [format, label]);
@@ -76,6 +88,7 @@ export default function AdSlot({ format, className, style, label }: AdSlotProps)
     return (
       <div
         ref={ref}
+        data-ad-banner="true"
         className={className}
         style={{
           display: 'flex',
@@ -92,6 +105,7 @@ export default function AdSlot({ format, className, style, label }: AdSlotProps)
     return (
       <div
         ref={ref}
+        data-ad-banner="true"
         className={className}
         style={{
           display: 'flex',

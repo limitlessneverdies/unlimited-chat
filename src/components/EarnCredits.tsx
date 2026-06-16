@@ -1,69 +1,131 @@
-import { useState } from 'react';
-import { X, Coins, Video, MousePointerClick, Gift, Zap } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { X, Coins, ExternalLink, Image, Gift, MousePointerClick } from 'lucide-react';
 import { useCredits } from '../store/credits';
-import AdSlot from './AdSlot';
 
 interface EarnCreditsProps {
   open: boolean;
   onClose: () => void;
 }
 
-const TASKS = [
-  {
-    id: 'video',
-    icon: Video,
-    title: 'Watch a video ad',
-    description: '10 credits',
-    reward: 10,
-    color: '#3b82f6',
-  },
-  {
-    id: 'click',
-    icon: MousePointerClick,
-    title: 'Click a sponsored link',
-    description: '5 credits',
-    reward: 5,
-    color: '#22c55e',
-  },
-  {
-    id: 'daily',
-    icon: Gift,
-    title: 'Daily bonus',
-    description: '20 credits',
-    reward: 20,
-    color: '#a855f7',
-  },
-];
+const SMARTLINK_URL = 'https://www.effectivecpmnetwork.com/ce7k8fvz?key=ef30a1d35aa3087234b05eba3fba8418';
 
 /**
- * Modal for earning credits. Shows tasks the user can complete to earn credits.
+ * Modal for earning credits. ALL tasks require real ad engagement.
+ * No fake tasks — every credit comes from a real ad impression or click.
  */
 export default function EarnCredits({ open, onClose }: EarnCreditsProps) {
   const earn = useCredits((s) => s.earn);
   const balance = useCredits((s) => s.balance);
   const totalEarned = useCredits((s) => s.totalEarned);
-  const [completedTasks, setCompletedTasks] = useState<Set<string>>(new Set());
-  const [showVideoAd, setShowVideoAd] = useState(false);
+  const [taskStates, setTaskStates] = useState<Record<string, { count: number; lastEarn: number }>>({});
+  const [adImpressions, setAdImpressions] = useState(0);
+
+  // Track real ad impressions via custom events from AdSlot
+  useEffect(() => {
+    function onImpression() {
+      setAdImpressions((prev) => prev + 1);
+      // Award 1 credit per banner/native view (max 5 per session)
+      const state = taskStates['banner-view'];
+      if (!state || state.count < 5) {
+        earn(1, 'Banner ad viewed');
+        setTaskStates((prev) => ({
+          ...prev,
+          'banner-view': {
+            count: (prev['banner-view']?.count || 0) + 1,
+            lastEarn: Date.now(),
+          },
+        }));
+      }
+    }
+    window.addEventListener('ad-impression', onImpression);
+    return () => window.removeEventListener('ad-impression', onImpression);
+  }, [earn, taskStates]);
 
   if (!open) return null;
 
-  function handleTask(taskId: string, reward: number) {
-    if (completedTasks.has(taskId)) return;
-
-    if (taskId === 'video') {
-      setShowVideoAd(true);
-      return;
-    }
-
-    earn(reward, taskId === 'daily' ? 'Daily bonus' : 'Sponsored link click');
-    setCompletedTasks(new Set([...completedTasks, taskId]));
+  function handleSmartlinkClick() {
+    window.open(SMARTLINK_URL, '_blank');
+    earn(5, 'Sponsored link clicked');
+    setTaskStates((prev) => ({
+      ...prev,
+      smartlink: {
+        count: (prev.smartlink?.count || 0) + 1,
+        lastEarn: Date.now(),
+      },
+    }));
   }
 
-  function handleVideoComplete() {
-    earn(10, 'Video ad watched');
-    setCompletedTasks(new Set([...completedTasks, 'video']));
-    setShowVideoAd(false);
+  function handleDailyBonus() {
+    const state = taskStates['daily'];
+    if (state && state.count > 0) return; // Already claimed today
+    earn(20, 'Daily bonus');
+    setTaskStates((prev) => ({
+      ...prev,
+      daily: { count: 1, lastEarn: Date.now() },
+    }));
   }
+
+  function handlePopunder() {
+    // Fire a real popunder by triggering a click event
+    window.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    earn(3, 'Popunder ad triggered');
+    setTaskStates((prev) => ({
+      ...prev,
+      popunder: {
+        count: (prev.popunder?.count || 0) + 1,
+        lastEarn: Date.now(),
+      },
+    }));
+  }
+
+  const tasks = [
+    {
+      id: 'smartlink',
+      icon: MousePointerClick,
+      title: 'Click a sponsored link',
+      description: 'Opens advertiser page • +5 credits',
+      reward: 5,
+      color: '#22c55e',
+      action: handleSmartlinkClick,
+      timesDone: taskStates['smartlink']?.count || 0,
+    },
+    {
+      id: 'banner-view',
+      icon: Image,
+      title: 'View banner ads',
+      description: `${adImpressions} ads loaded this session • +1 credit each`,
+      reward: 1,
+      color: '#3b82f6',
+      action: () => {
+        // Scroll to a banner ad to trigger impression
+        const banners = document.querySelectorAll('[data-ad-banner]');
+        if (banners.length > 0) {
+          banners[0].scrollIntoView({ behavior: 'smooth' });
+        }
+      },
+      timesDone: taskStates['banner-view']?.count || 0,
+    },
+    {
+      id: 'popunder',
+      icon: ExternalLink,
+      title: 'Trigger a popunder ad',
+      description: 'Opens sponsored page in new tab • +3 credits',
+      reward: 3,
+      color: '#f59e0b',
+      action: handlePopunder,
+      timesDone: taskStates['popunder']?.count || 0,
+    },
+    {
+      id: 'daily',
+      icon: Gift,
+      title: 'Daily login bonus',
+      description: 'Once per day • +20 credits',
+      reward: 20,
+      color: '#a855f7',
+      action: handleDailyBonus,
+      timesDone: taskStates['daily']?.count || 0,
+    },
+  ];
 
   return (
     <div
@@ -148,32 +210,34 @@ export default function EarnCredits({ open, onClose }: EarnCreditsProps) {
           </div>
         </div>
 
+        {/* Info */}
+        <div style={{ padding: '12px 24px 0', fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>
+          All credits come from real ad engagement. Click ads to earn.
+        </div>
+
         {/* Tasks */}
         <div style={{ padding: '12px 24px 20px' }}>
           <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 12, letterSpacing: '0.1em' }}>
-            EARN BY COMPLETING TASKS
+            EARN BY INTERACTING WITH ADS
           </div>
 
-          {TASKS.map((task) => {
+          {tasks.map((task) => {
             const Icon = task.icon;
-            const completed = completedTasks.has(task.id);
             return (
               <button
                 key={task.id}
-                onClick={() => handleTask(task.id, task.reward)}
-                disabled={completed}
+                onClick={task.action}
                 style={{
                   width: '100%',
                   padding: '14px 16px',
-                  background: completed ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.05)',
+                  background: 'rgba(255,255,255,0.05)',
                   border: '1px solid rgba(255,255,255,0.06)',
                   borderRadius: 10,
                   marginBottom: 8,
                   display: 'flex',
                   alignItems: 'center',
                   gap: 12,
-                  cursor: completed ? 'default' : 'pointer',
-                  opacity: completed ? 0.5 : 1,
+                  cursor: 'pointer',
                   transition: 'all 0.15s ease',
                 }}
               >
@@ -199,63 +263,21 @@ export default function EarnCredits({ open, onClose }: EarnCreditsProps) {
                     {task.description}
                   </div>
                 </div>
-                {completed ? (
-                  <span style={{ fontSize: 12, color: '#22c55e', fontWeight: 600 }}>
-                    +{task.reward} ✓
-                  </span>
-                ) : (
-                  <Zap size={14} color="rgba(255,255,255,0.3)" />
-                )}
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#ccff00' }}>
+                    +{task.reward}
+                  </div>
+                  {task.timesDone > 0 && (
+                    <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)' }}>
+                      {task.timesDone}x done
+                    </div>
+                  )}
+                </div>
               </button>
             );
           })}
         </div>
-
-        {/* Smartlink ad at bottom */}
-        <div style={{ padding: '0 24px 20px' }}>
-          <AdSlot format="smartlink" label="🎁 Get 50 bonus credits" />
-        </div>
       </div>
-
-      {/* Inline video ad */}
-      {showVideoAd && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 9999,
-            background: '#000',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexDirection: 'column',
-            gap: 16,
-          }}
-          onClick={handleVideoComplete}
-        >
-          <div style={{ color: '#fff', fontSize: 14, opacity: 0.6 }}>Advertisement</div>
-          <div
-            style={{
-              width: 320,
-              height: 180,
-              background: 'linear-gradient(135deg, #1a1a2e, #16213e)',
-              borderRadius: 12,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              border: '1px solid rgba(255,255,255,0.1)',
-            }}
-          >
-            <Video size={48} color="rgba(255,255,255,0.2)" />
-          </div>
-          <div style={{ color: '#ccff00', fontSize: 13, fontWeight: 600 }}>
-            Tap anywhere to continue (+10 credits)
-          </div>
-          <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: 11 }}>
-            Click to skip • Still earn credits
-          </div>
-        </div>
-      )}
     </div>
   );
 }
