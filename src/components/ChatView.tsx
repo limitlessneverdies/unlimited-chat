@@ -7,6 +7,7 @@ import MessageList from './MessageList';
 import Composer from './Composer';
 import RewardAd from './RewardAd';
 import AdSlot from './AdSlot';
+import VideoAd from './VideoAd';
 import { ChevronDown, Globe, Zap, Sparkles, GitMerge, Download, Infinity as InfinityIcon } from 'lucide-react';
 import { nanoid } from 'nanoid';
 
@@ -31,6 +32,8 @@ export default function ChatView() {
   const [exportOpen, setExportOpen] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const [streaming, setStreaming] = useState(false);
+  const [showVideoAd, setShowVideoAd] = useState(false);
+  const msgCountRef = useRef(0);
 
   const dynamic = useModels((s) => s.models);
   const modelsSource = useModels((s) => s.source);
@@ -54,6 +57,13 @@ export default function ChatView() {
 
     const userMsg = store.addUserMessage(composed, attachments?.map((a) => ({ name: a.name, size: a.size })));
     if (!userMsg) return;
+
+    // Video ad every 5 messages
+    msgCountRef.current++;
+    if (msgCountRef.current % 5 === 0) {
+      setShowVideoAd(true);
+      return; // Ad shows, user sends message after ad closes
+    }
 
     // Capture before the stream — convo can change underneath us. We trigger a
     // background title generation only on the first exchange of a chat.
@@ -590,6 +600,15 @@ export default function ChatView() {
 
       {/* Composer */}
       <Composer onSend={handleSend} onStop={handleStop} streaming={streaming} />
+
+      {/* Video Ad — shown every 5 messages */}
+      {showVideoAd && (
+        <VideoAd
+          onComplete={() => setShowVideoAd(false)}
+          onSkip={() => setShowVideoAd(false)}
+          skipAfter={5}
+        />
+      )}
     </main>
   );
 }
