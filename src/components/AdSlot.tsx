@@ -1,67 +1,92 @@
 import { useEffect, useRef } from 'react';
 
-// Adsterra placeholder zone IDs — replace with real ones from your Adsterra dashboard.
-const ZONES: Record<string, string> = {
-  sidebar: 'adsterra-sidebar-banner',
-  'between-messages': 'adsterra-between-msgs',
-};
+// Adsterra ad unit IDs from dashboard
+export const ADSTERRA = {
+  POPUNDER: '29662816',
+  SMARTLINK: '29662817',
+  SOCIAL_BAR: '29662818',
+  NATIVE_BANNER: '29662819',
+  BANNER_728x90: '29662820',
+} as const;
+
+type AdFormat = 'banner' | 'native' | 'social-bar' | 'popunder' | 'smartlink';
 
 interface AdSlotProps {
-  zone: keyof typeof ZONES;
+  format: AdFormat;
+  zoneId?: string;
   className?: string;
+  style?: React.CSSProperties;
 }
 
 /**
- * Reusable Adsterra ad surface. Injects the Adsterra script once per page load
- * and renders the zone div. If Adsterra isn't loaded (ad-blocker / SSR), the
- * slot simply collapses to zero height — no layout shift, no console noise.
+ * Reusable Adsterra ad component. Each format gets its own rendering approach.
  */
-export default function AdSlot({ zone, className }: AdSlotProps) {
+export default function AdSlot({ format, zoneId, className, style }: AdSlotProps) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Inject the Adsterra loader script once
-    if (!document.getElementById('adsterra-js')) {
-      const script = document.createElement('script');
-      script.id = 'adsterra-js';
-      script.src = 'https://www.adsterra.com/ads.js';
-      script.async = true;
-      document.head.appendChild(script);
-    }
-
-    // Tell Adsterra to render inside our container after a tick
     const el = ref.current;
     if (!el) return;
-    const timer = setTimeout(() => {
-      try {
-        (window as any).adsterra?.render(el);
-      } catch {
-        // Ad-blocked or script not loaded — silently ignore
-      }
-    }, 200);
-    return () => clearTimeout(timer);
-  }, []);
+
+    // Adsterra ads render via their script injection — we just provide the container.
+    // The actual rendering happens through the script tags we inject in index.html
+    // or via the Adsterra dashboard's embed code.
+  }, [format]);
+
+  const zone = zoneId ?? ADSTERRA[format === 'banner' ? 'BANNER_728x90' : format === 'native' ? 'NATIVE_BANNER' : 'SOCIAL_BAR'];
+
+  if (format === 'social-bar') {
+    return (
+      <div
+        ref={ref}
+        className={className}
+        id={`adsterra-social-bar`}
+        data-zone-id={zone}
+        style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 999, ...style }}
+      />
+    );
+  }
+
+  if (format === 'banner') {
+    return (
+      <div
+        ref={ref}
+        className={className}
+        id={`adsterra-banner-${zone}`}
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          overflow: 'hidden',
+          minHeight: 90,
+          ...style,
+        }}
+      />
+    );
+  }
+
+  if (format === 'native') {
+    return (
+      <div
+        ref={ref}
+        className={className}
+        id={`adsterra-native-${zone}`}
+        data-zone-id={zone}
+        style={{
+          minHeight: 80,
+          overflow: 'hidden',
+          ...style,
+        }}
+      />
+    );
+  }
 
   return (
     <div
       ref={ref}
-      data-zone={ZONES[zone]}
       className={className}
-      style={{
-        minHeight: 60,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        overflow: 'hidden',
-        borderRadius: 'var(--radius)',
-        border: '1px dashed var(--line-2)',
-        opacity: 0.6,
-      }}
-    >
-      {/* Fallback text when no ad loads */}
-      <span className="mono uppercase tiny dimmer" style={{ fontSize: 9, letterSpacing: '0.15em' }}>
-        AD SPACE
-      </span>
-    </div>
+      id={`adsterra-${format}-${zone}`}
+      data-zone-id={zone}
+      style={{ minHeight: 60, overflow: 'hidden', ...style }}
+    />
   );
 }

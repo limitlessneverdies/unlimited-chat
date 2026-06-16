@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { X, Check, GitMerge, Sparkles } from 'lucide-react';
 import { useChat } from '../store/chat';
 import { useModels } from '../store/models';
-import { MODELS, vendorAccent } from '../api/models';
+import { MODELS, vendorAccent, isFreeModel } from '../api/models';
 
 export default function MergePicker() {
   const open = useChat((s) => s.mergePickerOpen);
@@ -156,10 +156,15 @@ export default function MergePicker() {
                 </span>
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: vendorAccent(m.vendor), marginTop: 6, flexShrink: 0 }} />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ fontWeight: 600, fontSize: 13 }}>{m.label}</span>
-                    <span className="mono tiny dimmer">{m.tier}</span>
-                  </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontWeight: 600, fontSize: 13 }}>{m.label}</span>
+                      {!isFreeModel(m.id) && (
+                        <span className="mono tiny" style={{ padding: '1px 5px', background: 'var(--accent-glow)', color: 'var(--accent)', borderRadius: 4, fontSize: 8, fontWeight: 700 }}>
+                          PRO
+                        </span>
+                      )}
+                      <span className="mono tiny dimmer">{m.tier}</span>
+                    </div>
                   <div className="dim" style={{ fontSize: 11, marginTop: 2 }}>{m.desc}</div>
                 </div>
                 <span className="mono tiny dimmer" style={{ flexShrink: 0 }}>{m.vendor}</span>

@@ -99,7 +99,7 @@ export default function MessageList({ onContinue }: { onContinue?: (id: string) 
             {/* Inject ad between messages every 5 rows */}
             {(idx + 1) % 5 === 0 && idx < rows.length - 1 && (
               <div style={{ margin: '16px 0' }}>
-                <AdSlot zone="between-messages" />
+                <AdSlot format="native" />
               </div>
             )}
           </div>

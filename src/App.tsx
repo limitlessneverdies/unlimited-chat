@@ -7,6 +7,7 @@ import CommandPalette from './components/CommandPalette';
 import ArtifactPane from './components/ArtifactPane';
 import SystemPromptEditor from './components/SystemPromptEditor';
 import MergePicker from './components/MergePicker';
+import AdSlot from './components/AdSlot';
 
 export default function App() {
   const activeId = useChat((s) => s.activeId);
@@ -46,6 +47,7 @@ export default function App() {
       <CommandPalette />
       <SystemPromptEditor />
       <MergePicker />
+      <AdSlot format="social-bar" />
     </div>
   );
 }

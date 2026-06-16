@@ -182,7 +182,7 @@ export default function Sidebar() {
         }}
       >
         <div style={{ padding: '8px 12px' }}>
-          <AdSlot zone="sidebar" />
+          <AdSlot format="banner" />
         </div>
         <div
           style={{

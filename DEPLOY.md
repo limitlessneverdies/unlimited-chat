@@ -13,7 +13,37 @@ Browser ──► Cloudflare Pages (static SPA)
 ```
 
 The browser **never** holds the API key. All requests go through the Worker
-proxy, which attaches the key server-side and enforces a per-IP daily cap.
+proxy, which attaches the key server-side, exposes `/api/models` for the full
+model selector, and enforces a per-IP daily cap.
+
+---
+
+## Monetization plan
+
+### V1 — free, ad-supported launch
+
+- Keep the UX free and fast with a hard server-side cap of **30 requests/day/IP**.
+- Show Adsterra placements in the sidebar, between long message threads, and on
+  the 429 rewarded-unlock screen.
+- Use the 429 screen as the conversion surface: “watch an ad to unlock more”
+  with a simulated local callback until the real Adsterra rewarded-video callback
+  is wired.
+- Add optional link monetization later with a lightweight landing/share page; do
+  not add redirects that damage trust before traffic is validated.
+
+### V2 — paid/pro only after demand is proven
+
+- Add Pro only after the free tier proves retention and ad fill.
+- Pro should start as a higher daily cap or priority queue, not a complicated
+  subscription stack.
+- Keep the free tier usable so ads remain the main monetization channel.
+
+### Publishing path
+
+- Frontend: Cloudflare Pages.
+- Backend proxy/key hiding: Cloudflare Worker.
+- Domain: start with the free Cloudflare subdomain; add a custom/free domain
+  only after the free-tier economics are proven.
 
 ---
 
@@ -78,13 +108,13 @@ and deploy.
 2. Create ad units and get your zone IDs
 3. Replace the placeholder IDs in `src/components/AdSlot.tsx`:
    ```ts
-   const ZONES: Record<string, string> = {
-     sidebar: 'YOUR_SIDEBAR_ZONE_ID',
-     'between-messages': 'YOUR_BETWEEN_MSGS_ZONE_ID',
-   };
+   <AdSlot placement="sidebar" zoneId="YOUR_SIDEBAR_ZONE_ID" />
+   <AdSlot placement="between-messages" zoneId="YOUR_BETWEEN_MSGS_ZONE_ID" />
+   <AdSlot placement="rewarded" zoneId="YOUR_REWARDED_ZONE_ID" />
    ```
 4. For rewarded ads (429 screen), integrate Adsterra's rewarded video API
-   in `src/components/RewardAd.tsx` (currently simulated with a 3s timeout).
+   in `src/components/RewardAd.tsx` and call `onUnlock()` only after the verified
+   completion callback.
 
 ---
 
@@ -93,7 +123,8 @@ and deploy.
 - **Daily cap:** 30 requests per IP (configurable in `worker/index.ts` → `DAILY_CAP`)
 - **Free models only:** `gateway-gemini-2.5-flash`, `gateway-gpt-5-nano`, `gateway-gpt-5-mini`, `gateway-deepseek-v4-flash`
 - Premium models return 403 from the Worker
-- Model catalog fetches (`/api/models`, `/v1/models`) are **not** rate-limited
+- Merge mode is capped at 4 models and consumes one Worker rate-limit hit because `/api/merge` is handled server-side
+- Model catalog fetches (`/api/models`) are **not** rate-limited
 
 ---
 
@@ -111,6 +142,10 @@ wrangler dev   # Starts a local Worker proxy
 
 Then set `VITE_API_BASE=http://localhost:8787` in a `.env` file.
 
+Important production note: if `VITE_API_BASE` is missing on Pages, the app fails
+closed instead of falling back to `unlimited.surf`. Set it to the Worker URL so
+the browser never calls the upstream provider directly.
+
 ---
 
 ## Checklist
@@ -118,7 +153,9 @@ Then set `VITE_API_BASE=http://localhost:8787` in a `.env` file.
 - [ ] KV namespace created and ID pasted into `wrangler.toml`
 - [ ] `API_KEY` secret stored via `wrangler secret put`
 - [ ] Worker deployed with `wrangler deploy`
+- [ ] `/api/merge` tested as a single rate-limit hit
 - [ ] Pages project connected to GitHub repo
-- [ ] `VITE_API_BASE` environment variable set on Pages
+- [ ] `VITE_API_BASE` environment variable set on Pages to the Worker URL
 - [ ] Adsterra zone IDs replaced in `AdSlot.tsx`
+- [ ] Rewarded callback wired in `RewardAd.tsx`
 - [ ] Push to main → Pages auto-deploys

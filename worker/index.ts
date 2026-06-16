@@ -33,6 +33,135 @@ const FREE_MODELS = new Set([
 ]);
 
 const DAILY_CAP = 30;
+const MAX_MERGE_MODELS = 4;
+
+function upstreamHeaders(env: Env): Record<string, string> {
+  return {
+    'content-type': 'application/json',
+    'x-api-key': env.API_KEY,
+    'anthropic-version': '2023-06-01',
+    'Authorization': `Bearer ${env.API_KEY}`,
+  };
+}
+
+async function handleMerge(req: Request, env: Env, origin: string | null, body: any): Promise<Response> {
+  const models = Array.isArray(body?.models)
+    ? body.models.filter((m: unknown): m is string => typeof m === 'string' && m.trim())
+    : [];
+
+  if (models.length === 0) {
+    return json({ error: 'invalid_models', message: 'models must be a non-empty array' }, 400, origin);
+  }
+  if (models.length > MAX_MERGE_MODELS) {
+    return json({ error: 'too_many_models', message: `Merge supports up to ${MAX_MERGE_MODELS} models` }, 400, origin);
+  }
+  for (const model of models) {
+    if (!FREE_MODELS.has(model)) {
+      return json({ error: 'premium_model', message: `${model} requires Pro. Pick a free model or upgrade.` }, 403, origin);
+    }
+  }
+
+  const prompt = typeof body?.prompt === 'string' ? body.prompt : '';
+  if (!prompt.trim()) {
+    return json({ error: 'invalid_prompt', message: 'prompt is required' }, 400, origin);
+  }
+
+  const maxTokens = typeof body?.max_tokens === 'number' ? body.max_tokens : 4096;
+  const system = typeof body?.system === 'string' ? body.system : undefined;
+
+  const upstream = models.map((model) => fetch(`${UPSTREAM}/v1/messages`, {
+    method: 'POST',
+    headers: upstreamHeaders(env),
+    body: JSON.stringify({
+      model,
+      max_tokens: maxTokens,
+      stream: true,
+      ...(system ? { system } : {}),
+      messages: [{ role: 'user', content: prompt }],
+    }),
+  }));
+
+  const responses = await Promise.all(upstream);
+  const failed = responses.find((res) => !res.ok);
+  if (failed) {
+    const text = await failed.text().catch(() => '');
+    return json({ error: 'upstream_error', message: text || failed.statusText }, failed.status, origin);
+  }
+
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      const push = (evt: any) => controller.enqueue(encoder.encode(`data: ${JSON.stringify(evt)}\n\n`));
+      const tasks = responses.map((res, index) => drainMergeSse(res, models[index], push));
+      Promise.all(tasks)
+        .then(() => controller.close())
+        .catch((err) => controller.error(err));
+    },
+  });
+
+  return new Response(stream, {
+    status: 200,
+    headers: {
+      'content-type': 'text/event-stream',
+      'cache-control': 'no-cache',
+      'x-accel-buffering': 'no',
+      ...cors(origin),
+    },
+  });
+}
+
+async function drainMergeSse(res: Response, model: string, push: (evt: any) => void): Promise<void> {
+  if (!res.body) {
+    push({ model, done: true, error: 'empty upstream response' });
+    return;
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let stopReason: string | undefined;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() ?? '';
+
+    for (const raw of lines) {
+      const line = raw.trim();
+      if (!line.startsWith('data:')) continue;
+      const payload = line.slice(5).trim();
+      if (!payload || payload === '[DONE]') continue;
+
+      let evt: any;
+      try {
+        evt = JSON.parse(payload);
+      } catch {
+        continue;
+      }
+
+      if (evt.type === 'content_block_delta' && evt.delta?.type === 'text_delta') {
+        push({ model, delta: evt.delta.text ?? '' });
+      } else if (evt.type === 'message_delta' && evt.delta?.stop_reason) {
+        stopReason = evt.delta.stop_reason;
+      } else if (evt.type === 'message_stop') {
+        push({ model, done: true, reason: stopReason || 'complete' });
+        return;
+      } else if (evt.type === 'error') {
+        push({ model, done: true, error: evt.error?.message ?? 'stream error' });
+        return;
+      } else if (typeof evt.delta === 'string') {
+        push({ model, delta: evt.delta });
+      } else if (evt.finish || evt.done) {
+        push({ model, done: true, reason: evt.reason || stopReason || 'complete' });
+        return;
+      }
+    }
+  }
+
+  push({ model, done: true, reason: stopReason || 'complete' });
+}
 
 function today(): string {
   // YYYY-MM-DD in UTC — the rate-limit window key.
@@ -43,7 +172,7 @@ function cors(origin: string | null): Record<string, string> {
   return {
     'Access-Control-Allow-Origin': origin || '*',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'content-type',
+    'Access-Control-Allow-Headers': 'content-type, authorization, x-api-key',
     'Access-Control-Max-Age': '86400',
   };
 }
@@ -110,17 +239,14 @@ export default {
       await env.RATELIMIT.put(rlKey, String(count + 1), { expirationTtl: 86400 });
     }
 
-    // --- Forward to upstream with the real key attached server-side ---
-    const upstreamHeaders: Record<string, string> = {
-      'content-type': 'application/json',
-      'x-api-key': env.API_KEY,
-      'anthropic-version': '2023-06-01',
-      'Authorization': `Bearer ${env.API_KEY}`,
-    };
+    if (url.pathname === '/api/merge') {
+      return handleMerge(req, env, origin, parsedBody);
+    }
 
+    // --- Forward to upstream with the real key attached server-side ---
     const upstreamReq = new Request(`${UPSTREAM}${url.pathname}`, {
       method: req.method,
-      headers: upstreamHeaders,
+      headers: upstreamHeaders(env),
       body: req.method === 'POST' ? bodyText : undefined,
     });
 

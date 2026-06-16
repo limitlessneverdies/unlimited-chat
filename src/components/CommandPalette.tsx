@@ -111,7 +111,7 @@ export default function CommandPalette() {
       label: 'About UNLIMITED // chat',
       icon: <SettingsIcon size={14} />,
       section: 'Info',
-      run: () => { setOpen(false); window.open('https://unlimited.surf', '_blank'); },
+        run: () => { setOpen(false); },
     });
 
     return list;

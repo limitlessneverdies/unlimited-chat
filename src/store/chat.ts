@@ -147,7 +147,7 @@ export const useChat = create<ChatState>()(
       rateLimit: null,
 
       newConversation: () => {
-        const c = blankConvo(get().model);
+        const c = blankConvo(DEFAULT_MODEL);
         set((s) => ({
           conversations: { ...s.conversations, [c.id]: c },
           order: [c.id, ...s.order],

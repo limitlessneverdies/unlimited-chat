@@ -1,11 +1,14 @@
 import { useState } from 'react';
 import { PlayCircle, CheckCircle, X } from 'lucide-react';
+import AdSlot from './AdSlot';
 
 interface RewardAdProps {
   message: string;
   cap: number;
   used: number;
   onDismiss: () => void;
+  onUnlock?: () => void;
+  onRetry?: () => void;
 }
 
 /**
@@ -15,7 +18,7 @@ interface RewardAdProps {
  * actual ad integration can be hooked up later via Adsterra's rewarded video
  * API.
  */
-export default function RewardAd({ message, cap, used, onDismiss }: RewardAdProps) {
+export default function RewardAd({ message, cap, used, onDismiss, onUnlock, onRetry }: RewardAdProps) {
   const [watching, setWatching] = useState(false);
   const [unlocked, setUnlocked] = useState(false);
 
@@ -26,6 +29,7 @@ export default function RewardAd({ message, cap, used, onDismiss }: RewardAdProp
     setTimeout(() => {
       setWatching(false);
       setUnlocked(true);
+      onUnlock?.();
       // Auto-dismiss after a short celebration
       setTimeout(onDismiss, 1800);
     }, 3000);
@@ -61,9 +65,27 @@ export default function RewardAd({ message, cap, used, onDismiss }: RewardAdProp
       </p>
 
       {unlocked ? (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, color: 'var(--accent)' }}>
-          <CheckCircle size={18} />
-          <span className="mono uppercase" style={{ fontWeight: 700, fontSize: 13 }}>Unlocked!</span>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, color: 'var(--accent)' }}>
+            <CheckCircle size={18} />
+            <span className="mono uppercase" style={{ fontWeight: 700, fontSize: 13 }}>Unlocked!</span>
+          </div>
+          {onRetry && (
+            <button
+              onClick={onRetry}
+              style={{
+                padding: '10px 18px',
+                background: 'var(--bg-2)',
+                color: 'var(--fg)',
+                border: '1px solid var(--line-2)',
+                borderRadius: 'var(--radius)',
+                fontWeight: 700,
+                fontSize: 12,
+              }}
+            >
+              Retry now
+            </button>
+          )}
         </div>
       ) : (
         <button
@@ -89,6 +111,11 @@ export default function RewardAd({ message, cap, used, onDismiss }: RewardAdProp
 
       <div className="mono uppercase tiny dimmer" style={{ fontSize: 9, marginTop: 16, letterSpacing: '0.1em' }}>
         Resets automatically at midnight UTC
+      </div>
+
+      {/* Smartlink ad */}
+      <div style={{ marginTop: 20 }}>
+        <AdSlot format="smartlink" zoneId="29662817" />
       </div>
     </div>
   );

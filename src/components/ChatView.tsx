@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useChat } from '../store/chat';
 import { useModels } from '../store/models';
-import { modelById, MODELS, vendorAccent } from '../api/models';
+import { modelById, MODELS, vendorAccent, isFreeModel } from '../api/models';
 import { streamChat, streamSearch, streamMerge, generateTitle, RateLimitError } from '../api/client';
 import MessageList from './MessageList';
 import Composer from './Composer';
@@ -75,7 +75,7 @@ export default function ChatView() {
         }
         await streamMerge({
           prompt: composed,
-          system: convo?.system,
+          system: useChat.getState().conversations[convoId]?.system,
           models: mergeModels,
           signal: ctrl.signal,
           onDelta: (mid, d) => {
@@ -102,7 +102,10 @@ export default function ChatView() {
           onSources: (s) => store.setSources(asst.id, s),
           onDelta: (d) => store.appendDelta(asst.id, d),
           onDone: () => store.finishAssistant(asst.id),
-          onError: (e) => store.finishAssistant(asst.id, e.message),
+          onError: (e) => {
+            if (e instanceof RateLimitError) setRateLimit({ message: e.message, cap: e.cap, used: e.used });
+            store.finishAssistant(asst.id, e.message);
+          },
         });
       } else {
         await streamSingle(asst.id, model, ctrl);
@@ -226,11 +229,15 @@ export default function ChatView() {
       await streamChat({
         model: useModel,
         messages: history,
-        system: convo?.system,
+        system: useChat.getState().conversations[activeId!]?.system,
         signal: ctrl.signal,
         onDelta: (d) => useChat.getState().appendDelta(asstId, d),
         onDone: (sr) => { stop = sr; },
-        onError: (e) => { stop = 'error'; useChat.getState().finishAssistant(asstId, e.message); },
+        onError: (e) => {
+          if (e instanceof RateLimitError) setRateLimit({ message: e.message, cap: e.cap, used: e.used });
+          stop = 'error';
+          useChat.getState().finishAssistant(asstId, e.message);
+        },
       });
       round++;
     } while (
@@ -260,11 +267,14 @@ export default function ChatView() {
       await streamChat({
         model: target.model || model,
         messages: history,
-        system: convo.system,
+        system: useChat.getState().conversations[activeId!]?.system,
         signal: ctrl.signal,
         onDelta: (d) => useChat.getState().appendDelta(messageId, d),
         onDone: () => useChat.getState().finishAssistant(messageId),
-        onError: (e) => useChat.getState().finishAssistant(messageId, e.message),
+        onError: (e) => {
+          if (e instanceof RateLimitError) setRateLimit({ message: e.message, cap: e.cap, used: e.used });
+          useChat.getState().finishAssistant(messageId, e.message);
+        },
       });
     } finally {
       setStreaming(false);
@@ -356,7 +366,7 @@ export default function ChatView() {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <span style={{ fontWeight: 600, fontSize: 13 }}>{m.label}</span>
-                        {m.id !== 'gateway-gemini-2.5-flash' && m.id !== 'gateway-gpt-5-nano' && m.id !== 'gateway-gpt-5-mini' && m.id !== 'gateway-deepseek-v4-flash' && (
+                        {!isFreeModel(m.id) && (
                           <span className="mono tiny" style={{ padding: '1px 5px', background: 'var(--accent-glow)', color: 'var(--accent)', borderRadius: 4, fontSize: 8, fontWeight: 700 }}>
                             PRO
                           </span>
@@ -563,6 +573,7 @@ export default function ChatView() {
             cap={rateLimit.cap}
             used={rateLimit.used}
             onDismiss={() => setRateLimit(null)}
+            onUnlock={() => setRateLimit(null)}
           />
         ) : convo && convo.messages.length === 0 ? (
           <EmptyState onPick={(prompt) => handleSend(prompt)} />
