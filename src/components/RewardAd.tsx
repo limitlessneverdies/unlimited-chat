@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { PlayCircle, CheckCircle, X } from 'lucide-react';
 import AdSlot from './AdSlot';
+import { useCredits } from '../store/credits';
 
 interface RewardAdProps {
   message: string;
@@ -21,12 +22,14 @@ interface RewardAdProps {
 export default function RewardAd({ message, cap, used, onDismiss, onUnlock, onRetry }: RewardAdProps) {
   const [watching, setWatching] = useState(false);
   const [unlocked, setUnlocked] = useState(false);
+  const earn = useCredits((s) => s.earn);
 
   function handleWatch() {
     setWatching(true);
     // Simulate a 3-second rewarded ad. Replace with real Adsterra rewarded
     // video callback when ready.
     setTimeout(() => {
+      earn(15, 'Rewarded ad completed');
       setWatching(false);
       setUnlocked(true);
       onUnlock?.();

@@ -7,6 +7,11 @@ export function isPremiumModel(id: string): boolean {
   return !isFreeModel(id);
 }
 
+/** Credit cost per message for a model. Free = 0, Pro = 5. */
+export function creditCost(id: string): number {
+  return isFreeModel(id) ? 0 : 5;
+}
+
 // Static fallback list + dynamic gateway-fetched enrichment.
 // The chat UI prefers the dynamic list once loaded; static is a fallback
 // for first paint / offline / gateway failure.

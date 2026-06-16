@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useChat } from '../store/chat';
 import { useModels } from '../store/models';
-import { modelById, MODELS, vendorAccent, isFreeModel } from '../api/models';
+import { modelById, MODELS, vendorAccent, isFreeModel, creditCost } from '../api/models';
 import { streamChat, streamSearch, streamMerge, generateTitle, RateLimitError } from '../api/client';
+import { useCredits } from '../store/credits';
 import MessageList from './MessageList';
 import Composer from './Composer';
 import RewardAd from './RewardAd';
 import AdSlot from './AdSlot';
 import VideoAd from './VideoAd';
+import LiveStats from './LiveStats';
 import { VIDEO_AD_CONFIG } from '../config/ads';
 import { ChevronDown, Globe, Zap, Sparkles, GitMerge, Download, Infinity as InfinityIcon } from 'lucide-react';
 import { nanoid } from 'nanoid';
@@ -29,6 +31,9 @@ export default function ChatView() {
   const setMergeModels = useChat((s) => s.setMergeModels);
   const rateLimit = useChat((s) => s.rateLimit);
   const setRateLimit = useChat((s) => s.setRateLimit);
+  const credits = useCredits((s) => s.balance);
+  const spendCredits = useCredits((s) => s.spend);
+  const trackMessage = useCredits((s) => s.trackMessage);
   const [modelOpen, setModelOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
@@ -58,6 +63,17 @@ export default function ChatView() {
 
     const userMsg = store.addUserMessage(composed, attachments?.map((a) => ({ name: a.name, size: a.size })));
     if (!userMsg) return;
+
+    // Credit check for Pro models
+    const cost = creditCost(model);
+    if (cost > 0 && !spendCredits(cost)) {
+      // Not enough credits — show earn modal
+      window.dispatchEvent(new CustomEvent('open-earn-credits'));
+      return;
+    }
+
+    // Track message for bonus credits
+    trackMessage();
 
     // Video ad every N messages
     msgCountRef.current++;
@@ -379,8 +395,13 @@ export default function ChatView() {
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <span style={{ fontWeight: 600, fontSize: 13 }}>{m.label}</span>
                         {!isFreeModel(m.id) && (
-                          <span className="mono tiny" style={{ padding: '1px 5px', background: 'var(--accent-glow)', color: 'var(--accent)', borderRadius: 4, fontSize: 8, fontWeight: 700 }}>
-                            PRO
+                          <span className="mono tiny" style={{ padding: '1px 5px', background: credits >= creditCost(m.id) ? 'rgba(204,255,0,0.15)' : 'rgba(255,60,60,0.15)', color: credits >= creditCost(m.id) ? '#ccff00' : '#ff3c3c', borderRadius: 4, fontSize: 8, fontWeight: 700 }}>
+                            {creditCost(m.id)} CR
+                          </span>
+                        )}
+                        {isFreeModel(m.id) && (
+                          <span className="mono tiny" style={{ padding: '1px 5px', background: 'rgba(34,197,94,0.15)', color: '#22c55e', borderRadius: 4, fontSize: 8, fontWeight: 700 }}>
+                            FREE
                           </span>
                         )}
                         <span className="mono tiny dimmer">{m.tier}</span>
@@ -575,6 +596,9 @@ export default function ChatView() {
             {convo.messages.length} msgs
           </div>
         )}
+
+        {/* Live stats */}
+        <LiveStats />
       </header>
 
       {/* Body */}

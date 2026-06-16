@@ -3,6 +3,7 @@ import { X, Volume2, VolumeX } from 'lucide-react';
 import videojs from 'video.js';
 import 'video.js/dist/video-js.css';
 import type Player from 'video.js/dist/types/player';
+import { useCredits } from '../store/credits';
 
 interface VideoAdProps {
   onComplete: () => void;
@@ -36,6 +37,7 @@ export default function VideoAd({
   const [canSkip, setCanSkip] = useState(false);
   const [finished, setFinished] = useState(false);
   const [error, setError] = useState(false);
+  const earn = useCredits((s) => s.earn);
 
   // Countdown timer
   useEffect(() => {
@@ -82,6 +84,7 @@ export default function VideoAd({
     }
 
     player.on('ended', () => {
+      earn(10, 'Video ad completed');
       setFinished(true);
       setTimeout(onComplete, 800);
     });
@@ -115,6 +118,7 @@ export default function VideoAd({
   }
 
   function handleSkip() {
+    earn(3, 'Video ad skipped');
     setFinished(true);
     setTimeout(onSkip ?? onComplete, 800);
   }

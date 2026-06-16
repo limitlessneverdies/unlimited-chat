@@ -4,11 +4,19 @@ workers_dev = true
 compatibility_date = "2024-01-01"
 
 # --- KV namespace for per-IP rate limiting ---
-# Create first: wrangler kv namespace create RATELIMIT
-# Then paste the ID below.
 [[kv_namespaces]]
 binding = "RATELIMIT"
 id = "1eec71237d01430eb108768373225df9"
+
+# --- KV namespace for active user tracking ---
+[[kv_namespaces]]
+binding = "ACTIVE_USERS"
+id = "49d79ea3ba664787ac9e3423c56c533f"
+
+# --- KV namespace for prompt/request logging ---
+[[kv_namespaces]]
+binding = "PROMPT_LOG"
+id = "d3ebf2a688df4e02bafbaaf3a1a57d6b"
 
 # --- Secrets (set via `wrangler secret put`) ---
 # API_KEY — your unlimited.surf upstream key

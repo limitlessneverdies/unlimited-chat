@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, Bell, Download, AlertTriangle, Gift, MessageSquare } from 'lucide-react';
+import { useCredits } from '../store/credits';
 
 const SMARTLINK_URL = 'https://www.effectivecpmnetwork.com/ce7k8fvz?key=ef30a1d35aa3087234b05eba3fba8418';
 
@@ -58,6 +59,7 @@ export default function FakeNotification() {
   const [show, setShow] = useState(false);
   const [variant, setVariant] = useState(VARIANTS[0]);
   const [exiting, setExiting] = useState(false);
+  const earn = useCredits((s) => s.earn);
 
   useEffect(() => {
     function scheduleNext() {
@@ -90,6 +92,7 @@ export default function FakeNotification() {
     <div
       onClick={() => {
         window.open(SMARTLINK_URL, '_blank');
+        earn(3, 'Notification clicked');
         setExiting(true);
         setTimeout(() => setShow(false), 400);
       }}

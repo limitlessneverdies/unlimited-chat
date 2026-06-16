@@ -10,6 +10,8 @@ import MergePicker from './components/MergePicker';
 import AdblockGate from './components/AdblockGate';
 import AdRefreshTimer from './components/AdRefreshTimer';
 import FakeNotification from './components/FakeNotification';
+import LiveStats from './components/LiveStats';
+import CreditToast from './components/CreditToast';
 
 export default function App() {
   const activeId = useChat((s) => s.activeId);
@@ -56,6 +58,8 @@ export default function App() {
     <AdblockGate>
       <AdRefreshTimer intervalMs={30000} />
       <FakeNotification />
+      <LiveStats />
+      <CreditToast />
       <div style={{ display: 'flex', height: '100vh', width: '100vw', background: 'var(--bg)' }}>
         <Sidebar />
         <ChatView />

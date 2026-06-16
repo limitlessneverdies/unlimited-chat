@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import { Plus, MessageSquare, Trash2, Pin, Settings } from 'lucide-react';
+import { Plus, MessageSquare, Trash2, Pin, Settings, Coins } from 'lucide-react';
 import { useChat } from '../store/chat';
 import { useModels } from '../store/models';
 import { MODELS, modelById } from '../api/models';
+import { useCredits } from '../store/credits';
 import AdSlot from './AdSlot';
+import EarnCredits from './EarnCredits';
 
 export default function Sidebar() {
   const order = useChat((s) => s.order);
@@ -13,6 +15,8 @@ export default function Sidebar() {
   const selectConversation = useChat((s) => s.selectConversation);
   const deleteConversation = useChat((s) => s.deleteConversation);
   const model = useChat((s) => s.model);
+  const balance = useCredits((s) => s.balance);
+  const [earnOpen, setEarnOpen] = useState(false);
   const dynamic = useModels((s) => s.models);
   const [hover, setHover] = useState<string | null>(null);
 
@@ -62,6 +66,45 @@ export default function Sidebar() {
           UNLIMITED<span style={{ color: 'var(--accent)' }}>//</span>CHAT
         </div>
       </div>
+
+      {/* Credit balance */}
+      <button
+        onClick={() => setEarnOpen(true)}
+        style={{
+          margin: '8px 12px',
+          padding: '10px 12px',
+          background: 'rgba(204,255,0,0.08)',
+          border: '1px solid rgba(204,255,0,0.2)',
+          borderRadius: 8,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          cursor: 'pointer',
+          transition: 'all 0.15s ease',
+        }}
+      >
+        <Coins size={16} color="#ccff00" />
+        <div style={{ flex: 1, textAlign: 'left' }}>
+          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.1em' }}>
+            CREDITS
+          </div>
+          <div style={{ fontSize: 18, fontWeight: 900, color: '#ccff00' }}>
+            {balance}
+          </div>
+        </div>
+        <div
+          style={{
+            padding: '4px 10px',
+            background: '#ccff00',
+            color: '#000',
+            borderRadius: 4,
+            fontSize: 10,
+            fontWeight: 700,
+          }}
+        >
+          EARN
+        </div>
+      </button>
 
       {/* New chat */}
       <button
@@ -233,6 +276,9 @@ export default function Sidebar() {
         </button>
         </div>
       </div>
+
+      {/* Earn Credits modal */}
+      <EarnCredits open={earnOpen} onClose={() => setEarnOpen(false)} />
     </aside>
   );
 }

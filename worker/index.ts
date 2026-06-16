@@ -9,6 +9,10 @@ export interface Env {
   API_KEY: string;
   // KV namespace binding — create via `wrangler kv namespace create RATELIMIT`.
   RATELIMIT: KVNamespace;
+  // KV for active user tracking
+  ACTIVE_USERS: KVNamespace;
+  // KV for prompt/request logging
+  PROMPT_LOG: KVNamespace;
 }
 
 const UPSTREAM = 'https://unlimited.surf';
@@ -54,11 +58,6 @@ async function handleMerge(req: Request, env: Env, origin: string | null, body: 
   }
   if (models.length > MAX_MERGE_MODELS) {
     return json({ error: 'too_many_models', message: `Merge supports up to ${MAX_MERGE_MODELS} models` }, 400, origin);
-  }
-  for (const model of models) {
-    if (!FREE_MODELS.has(model)) {
-      return json({ error: 'premium_model', message: `${model} requires Pro. Pick a free model or upgrade.` }, 403, origin);
-    }
   }
 
   const prompt = typeof body?.prompt === 'string' ? body.prompt : '';
@@ -193,6 +192,58 @@ export default {
       return new Response(null, { status: 204, headers: cors(origin) });
     }
 
+    // --- Active user tracking ---
+    if (url.pathname === '/api/heartbeat' && req.method === 'POST') {
+      const ip = req.headers.get('CF-Connecting-IP') || 'unknown';
+      const now = Date.now();
+      // Store heartbeat with 5min TTL
+      await env.ACTIVE_USERS.put(`user:${ip}`, String(now), { expirationTtl: 300 });
+      // Count active users (last 5 min)
+      const list = await env.ACTIVE_USERS.list({ prefix: 'user:' });
+      const activeCount = list.keys.length;
+      // Total unique users today
+      const totalList = await env.ACTIVE_USERS.list({ prefix: 'total:' });
+      const totalCount = totalList.keys.length;
+      // Record this user for total count
+      await env.ACTIVE_USERS.put(`total:${ip}`, '1', { expirationTtl: 86400 });
+      return json({ active: activeCount, total: totalCount }, 200, origin);
+    }
+
+    // --- Prompt/request logging ---
+    if (url.pathname === '/api/log' && req.method === 'POST') {
+      let body: any;
+      try { body = await req.json(); } catch { return json({ error: 'invalid json' }, 400, origin); }
+      const ip = req.headers.get('CF-Connecting-IP') || 'unknown';
+      const logEntry = {
+        ip,
+        model: body.model || 'unknown',
+        prompt: (body.prompt || '').slice(0, 500),
+        timestamp: Date.now(),
+        date: today(),
+      };
+      // Store in KV with date-based key
+      const logKey = `log:${today()}:${Date.now()}:${ip}`;
+      await env.PROMPT_LOG.put(logKey, JSON.stringify(logEntry), { expirationTtl: 604800 }); // 7 days
+      // Also increment daily counter
+      const counterKey = `count:${today()}`;
+      const raw = await env.PROMPT_LOG.get(counterKey);
+      const count = raw ? parseInt(raw, 10) + 1 : 1;
+      await env.PROMPT_LOG.put(counterKey, String(count), { expirationTtl: 604800 });
+      return json({ ok: true, totalToday: count }, 200, origin);
+    }
+
+    // --- Stats endpoint ---
+    if (url.pathname === '/api/stats') {
+      const counterKey = `count:${today()}`;
+      const raw = await env.PROMPT_LOG.get(counterKey);
+      const totalToday = raw ? parseInt(raw, 10) : 0;
+      const activeList = await env.ACTIVE_USERS.list({ prefix: 'user:' });
+      const activeCount = activeList.keys.length;
+      const totalList = await env.ACTIVE_USERS.list({ prefix: 'total:' });
+      const totalCount = totalList.keys.length;
+      return json({ active: activeCount, total: totalCount, promptsToday: totalToday }, 200, origin);
+    }
+
     if (!ALLOWED_PATHS.has(url.pathname)) {
       return json({ error: 'Not found' }, 404, origin);
     }
@@ -212,18 +263,6 @@ export default {
       try { parsedBody = JSON.parse(bodyText); } catch { parsedBody = null; }
     }
 
-    // --- Free-tier model enforcement (the real gate; can't be bypassed via JS) ---
-    if (!isModelList && parsedBody?.model) {
-      const model: string = parsedBody.model;
-      if (!FREE_MODELS.has(model)) {
-        return json(
-          { error: 'premium_model', message: 'This model requires Pro. Pick a free model or upgrade.' },
-          403,
-          origin,
-        );
-      }
-    }
-
     // --- Per-IP daily rate limit ---
     if (!isModelList) {
       const raw = await env.RATELIMIT.get(rlKey);
@@ -237,6 +276,23 @@ export default {
       }
       // Increment with a 24h TTL so the key self-expires.
       await env.RATELIMIT.put(rlKey, String(count + 1), { expirationTtl: 86400 });
+    }
+
+    // --- Log prompt for analytics ---
+    if (req.method === 'POST' && parsedBody?.messages) {
+      const lastMsg = parsedBody.messages[parsedBody.messages.length - 1];
+      const prompt = lastMsg?.content || '';
+      const model = parsedBody.model || 'unknown';
+      const logKey = `log:${today()}:${Date.now()}:${ip}`;
+      await env.PROMPT_LOG.put(logKey, JSON.stringify({
+        ip, model, prompt: (typeof prompt === 'string' ? prompt : JSON.stringify(prompt)).slice(0, 500),
+        timestamp: Date.now(), date: today(),
+      }), { expirationTtl: 604800 });
+      // Increment daily counter
+      const counterKey = `count:${today()}`;
+      const raw2 = await env.PROMPT_LOG.get(counterKey);
+      const count2 = raw2 ? parseInt(raw2, 10) + 1 : 1;
+      await env.PROMPT_LOG.put(counterKey, String(count2), { expirationTtl: 604800 });
     }
 
     if (url.pathname === '/api/merge') {
